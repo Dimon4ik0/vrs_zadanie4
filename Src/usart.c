@@ -46,6 +46,7 @@ void MX_USART2_UART_Init(void)
   LL_APB1_GRP1_EnableClock(LL_APB1_GRP1_PERIPH_USART2);
   
   LL_AHB1_GRP1_EnableClock(LL_AHB1_GRP1_PERIPH_GPIOA);
+  LL_AHB1_GRP1_EnableClock(LL_AHB1_GRP1_PERIPH_DMA1);
   /**USART2 GPIO Configuration  
   PA2   ------> USART2_TX
   PA15   ------> USART2_RX 
@@ -59,11 +60,13 @@ void MX_USART2_UART_Init(void)
   LL_GPIO_Init(GPIOA, &GPIO_InitStruct);
 
   /* USART2 DMA Init */
+  LL_DMA_SetDataTransferDirection(DMA1, LL_DMA_CHANNEL_6, LL_DMA_DIRECTION_PERIPH_TO_MEMORY);
+    LL_DMA_SetChannelPriorityLevel(DMA1, LL_DMA_CHANNEL_6, LL_DMA_PRIORITY_MEDIUM);
   
   /* USART2_RX Init */
   LL_DMA_SetDataTransferDirection(DMA1, LL_DMA_CHANNEL_6, LL_DMA_DIRECTION_PERIPH_TO_MEMORY);
   LL_DMA_SetChannelPriorityLevel(DMA1, LL_DMA_CHANNEL_6, LL_DMA_PRIORITY_MEDIUM);
-  LL_DMA_SetMode(DMA1, LL_DMA_CHANNEL_6, LL_DMA_MODE_CIRCULAR);
+  LL_DMA_SetMode(DMA1, LL_DMA_CHANNEL_6, LL_DMA_MODE_NORMAL);
   LL_DMA_SetPeriphIncMode(DMA1, LL_DMA_CHANNEL_6, LL_DMA_PERIPH_NOINCREMENT);
   LL_DMA_SetMemoryIncMode(DMA1, LL_DMA_CHANNEL_6, LL_DMA_MEMORY_INCREMENT);
   LL_DMA_SetPeriphSize(DMA1, LL_DMA_CHANNEL_6, LL_DMA_PDATAALIGN_BYTE);
@@ -81,6 +84,9 @@ void MX_USART2_UART_Init(void)
 #if !POLLING
   LL_DMA_EnableIT_TC(DMA1, LL_DMA_CHANNEL_6);
   LL_DMA_EnableIT_HT(DMA1, LL_DMA_CHANNEL_6);
+
+  NVIC_SetPriority(DMA1_Channel6_IRQn, 0);
+  NVIC_EnableIQ(DMA1_Channel6_IRQn);
 #endif
 
   /* USART2_TX Init */
@@ -143,23 +149,16 @@ void USART2_CheckDmaReception(void)
 		if (pos > old_pos)
 		{
 			USART2_ProcessData(&bufferUSART2dma[old_pos], pos - old_pos);
+			old_pos = pos;
 		}
-		else
-		{
-			USART2_ProcessData(&bufferUSART2dma[old_pos], DMA_USART2_BUFFER_SIZE - old_pos);
 
-			if (pos > 0)
-			{
-				USART2_ProcessData(&bufferUSART2dma[0], pos);
-			}
+		if((DMA_USART2_BUFFER_SIZE - old_pos) < 20 || old_pos >= DMA_USART2_BUFFER_SIZE){
+			LL_DMA_DisableChannel(DMA1, LL_DMA_CHANNEL_6);
+			LL_DMA_SetDataLength(DMA1, LL_DMA_CHANNEL_6, DMA_USART2_BUFFER_SIZE);
+			LL_DMA_EnableChannel(DMA1, LL_DMA_CHANNEL_6);
+			old_pos = 0;
 		}
-	}
 
-	old_pos = pos;
-
-	if (old_pos == DMA_USART2_BUFFER_SIZE)
-	{
-		old_pos = 0;
 	}
 }
 
