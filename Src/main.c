@@ -161,6 +161,63 @@ void SystemClock_Config(void)
 }
 
 /* USER CODE BEGIN 4 */
+
+void procesDmaData(const uint8_t* data, uint16_t len){
+	static uint8_t inside_frame = 0;
+	static uint8_t char_count = 0;
+	static uint8_t upper_count = 0;
+	static uint8_t lower_count = 0;
+
+	for (uint16_t i = 0; i < len; i++){
+		uint8_t c = data[i];
+		if(!inside_frame){
+
+			if (c == '#'){
+				inside_frame = 1;
+				char_count = 0;
+				upper_count = 0;
+				lower_count = 0;
+
+
+
+			}
+
+		}
+		else{
+			if(c == '$'){
+
+				count++;
+
+				int tx_len = sprintf((char*)tx_data, "Velke pismena: %u, Male pismena: %u\r\n", upper_count, lower_count);
+
+				USART2_PutBuffer(tx_data, tx_len);
+
+				inside_frame = 0;
+			}
+			else{
+
+				char_count++;
+
+				if(char_count > 35){
+					inside_frame = 0;
+						}
+						else{
+							if(c >= 'A' && c <= 'Z'){
+								upper_count++;
+							}
+							else if(c >= 'a' && c <= 'z'){
+								lower_count++;
+						}
+					}
+
+			}
+		}
+
+
+	}
+
+}
+
 void receive_dma_data(const uint8_t* data, uint16_t len)
 {
     for(uint8_t i = 0; i < len; i++)
